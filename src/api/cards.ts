@@ -1,20 +1,8 @@
 import { apiClient } from './client';
-import type { Card, CreateCardInput, UpdateCardInput } from '../types/card';
-
-export async function searchCards(searchTerm: string): Promise<Card[]> {
-  const { data } = await apiClient.get<Card[]>('/cards', {
-    params: searchTerm ? { searchTerm } : undefined,
-  });
-  return data;
-}
+import type { Card, CatalogSearchResult, CreateCardInput, UpdateCardInput } from '../types/card';
 
 export async function getCardById(id: string): Promise<Card> {
   const { data } = await apiClient.get<Card>(`/cards/${id}`);
-  return data;
-}
-
-export async function createCard(input: CreateCardInput): Promise<Card> {
-  const { data } = await apiClient.post<Card>('/cards', input);
   return data;
 }
 
@@ -31,12 +19,19 @@ export async function getOwnedCards(): Promise<Card[]> {
   return data;
 }
 
-export async function incrementCardQuantity(id: string): Promise<Card> {
-  const { data } = await apiClient.post<Card>(`/cards/${id}/increment-quantity`);
+export async function decrementCardQuantity(id: string): Promise<Card> {
+  const { data } = await apiClient.post<Card>(`/cards/${id}/decrement-quantity`);
   return data;
 }
 
-export async function decrementCardQuantity(id: string): Promise<Card> {
-  const { data } = await apiClient.post<Card>(`/cards/${id}/decrement-quantity`);
+export async function catalogSearch(query: string): Promise<CatalogSearchResult[]> {
+  const { data } = await apiClient.get<CatalogSearchResult[]>('/cards/catalog-search', {
+    params: { query },
+  });
+  return data;
+}
+
+export async function addFromCatalog(input: CreateCardInput): Promise<Card> {
+  const { data } = await apiClient.post<Card>('/cards/catalog-search/add', input);
   return data;
 }

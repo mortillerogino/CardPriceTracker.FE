@@ -88,7 +88,11 @@ export function BinderPage() {
               slot.card ? (
                 <div key={`${slot.card.id}-${i}`} style={{ position: 'relative', aspectRatio: '3 / 4' }}>
                   <div className="duotone" style={{ width: '100%', height: '100%', border: '1px solid var(--color-divider)' }}>
-                    Art
+                    {slot.card.imageUrl ? (
+                      <img src={slot.card.imageUrl} alt={slot.card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      'Art'
+                    )}
                   </div>
                   <button
                     type="button"

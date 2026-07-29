@@ -1,25 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  createCard,
-  decrementCardQuantity,
-  deleteCard,
-  getOwnedCards,
-  incrementCardQuantity,
-  searchCards,
-} from '../api/cards';
+import { addFromCatalog, catalogSearch, decrementCardQuantity, deleteCard, getOwnedCards } from '../api/cards';
 import type { CreateCardInput } from '../types/card';
 
-const cardsQueryKey = (searchTerm: string) => ['cards', searchTerm] as const;
 const ownedQueryKey = ['cards', 'owned'] as const;
+const catalogSearchQueryKey = (query: string) => ['catalog-search', query] as const;
 
 function invalidateCardQueries(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ['cards'] });
+  queryClient.invalidateQueries({ queryKey: ['catalog-search'] });
 }
 
-export function useCards(searchTerm: string) {
+export function useCatalogSearch(query: string) {
   return useQuery({
-    queryKey: cardsQueryKey(searchTerm),
-    queryFn: () => searchCards(searchTerm),
+    queryKey: catalogSearchQueryKey(query),
+    queryFn: () => catalogSearch(query),
+    enabled: query.trim().length >= 5,
   });
 }
 
@@ -30,11 +25,11 @@ export function useOwnedCards() {
   });
 }
 
-export function useCreateCard() {
+export function useAddFromCatalog() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: CreateCardInput) => createCard(input),
+    mutationFn: (input: CreateCardInput) => addFromCatalog(input),
     onSuccess: () => invalidateCardQueries(queryClient),
   });
 }
@@ -44,15 +39,6 @@ export function useDeleteCard() {
 
   return useMutation({
     mutationFn: (id: string) => deleteCard(id),
-    onSuccess: () => invalidateCardQueries(queryClient),
-  });
-}
-
-export function useIncrementCardQuantity() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => incrementCardQuantity(id),
     onSuccess: () => invalidateCardQueries(queryClient),
   });
 }

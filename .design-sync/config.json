@@ -1,0 +1,37 @@
+{
+  "projectId": "df6ca6c1-250a-4e78-920d-769903792857",
+  "pkg": "frontend",
+  "globalName": "CardPriceTrackerDS",
+  "shape": "package",
+  "srcDir": "src",
+  "entry": "./.design-sync/support/entry.ts",
+  "cssEntry": "src/styles/theme.css",
+  "componentSrcMap": {
+    "App": null,
+    "CardTile": "src/components/CardTile.tsx",
+    "MainLayout": "src/layouts/MainLayout.tsx",
+    "BinderPage": "src/pages/BinderPage.tsx",
+    "SearchPage": "src/pages/SearchPage.tsx"
+  },
+  "dtsPropsFor": {
+    "CardTile": "name: string; setName: string; cardNumber: string; imageUrl: string | null; rarity: string | null; quantity: number; onAdd: () => void; isPulsing: boolean;",
+    "MainLayout": "// No props — reads the current route (react-router) and owned-card totals (react-query) directly from context.",
+    "BinderPage": "// No props — reads owned cards via react-query and mutates quantities directly.",
+    "SearchPage": "// No props — reads/writes the catalog search via react-query directly."
+  },
+  "overrides": {
+    "MainLayout": { "cardMode": "column" },
+    "CardTile": { "viewport": "300x560" }
+  },
+  "extraEntries": [
+    "@tanstack/react-query",
+    "./.design-sync/support/query-client.ts"
+  ],
+  "readmeHeader": ".design-sync/conventions.md",
+  "provider": {
+    "component": "QueryClientProvider",
+    "props": {
+      "client": { "$ref": "dsPreviewQueryClient" }
+    }
+  }
+}
