@@ -3,6 +3,7 @@ export interface Card {
   name: string;
   setName: string;
   cardNumber: string;
+  quantity: number;
   createdAtUtc: string;
 }
 

@@ -1,12 +1,67 @@
-import { Outlet } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useOwnedCards } from '../hooks/useCards';
 
 export function MainLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { data: ownedCards } = useOwnedCards();
+  const totalOwned = (ownedCards ?? []).reduce((sum, c) => sum + c.quantity, 0);
+
+  const [bounce, setBounce] = useState(false);
+  const prevTotal = useRef(totalOwned);
+
+  useEffect(() => {
+    if (totalOwned !== prevTotal.current) {
+      setBounce(true);
+      const timer = window.setTimeout(() => setBounce(false), 600);
+      prevTotal.current = totalOwned;
+      return () => window.clearTimeout(timer);
+    }
+  }, [totalOwned]);
+
+  const isSearch = location.pathname === '/';
+  const isBinder = location.pathname === '/binder';
+
   return (
-    <div className="app-shell">
-      <header className="app-header">
-        <h1>CardPriceTracker</h1>
-      </header>
-      <main className="app-main">
+    <div style={{ minHeight: '100vh' }}>
+      <nav className="nav" style={{ borderBottom: '1px solid var(--color-divider)', position: 'sticky', top: 0, background: 'var(--color-bg)', zIndex: 10 }}>
+        <span className="nav-brand">
+          CardPriceTracker<span style={{ color: 'var(--color-accent)' }}> — Field Catalog</span>
+        </span>
+        <div className="seg" role="radiogroup" aria-label="View" style={{ marginLeft: 'auto' }}>
+          <label className="seg-opt">
+            <input type="radio" name="view-toggle" checked={isSearch} onChange={() => navigate('/')} />
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            Search
+          </label>
+          <label className="seg-opt">
+            <input type="radio" name="view-toggle" checked={isBinder} onChange={() => navigate('/binder')} />
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 7v14" />
+              <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+            </svg>
+            Binder
+          </label>
+        </div>
+        <Link to="/binder" className="btn btn-secondary blueprint" style={{ textDecoration: 'none' }}>
+          <i className="corner tl" />
+          <i className="corner tr" />
+          <i className="corner bl" />
+          <i className="corner br" />
+          <span className={bounce ? 'badge-bounce' : ''} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 7v14" />
+              <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+            </svg>
+            {totalOwned} catalogued
+          </span>
+        </Link>
+      </nav>
+      <main>
         <Outlet />
       </main>
     </div>

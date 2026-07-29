@@ -1,13 +1,14 @@
 import { Route, Routes } from 'react-router-dom';
-import './App.css';
 import { MainLayout } from './layouts/MainLayout';
-import { CardsPage } from './pages/CardsPage';
+import { SearchPage } from './pages/SearchPage';
+import { BinderPage } from './pages/BinderPage';
 
 function App() {
   return (
     <Routes>
       <Route element={<MainLayout />}>
-        <Route path="/" element={<CardsPage />} />
+        <Route path="/" element={<SearchPage />} />
+        <Route path="/binder" element={<BinderPage />} />
       </Route>
     </Routes>
   );
