@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { Card, CatalogSearchResult, CreateCardInput, UpdateCardInput } from '../types/card';
+import type { Card, CatalogSearchResult, CatalogSet, CreateCardInput, UpdateCardInput } from '../types/card';
 
 export async function getCardById(id: string): Promise<Card> {
   const { data } = await apiClient.get<Card>(`/cards/${id}`);
@@ -24,10 +24,15 @@ export async function decrementCardQuantity(id: string): Promise<Card> {
   return data;
 }
 
-export async function catalogSearch(query: string): Promise<CatalogSearchResult[]> {
+export async function catalogSearch(query: string, setId: string): Promise<CatalogSearchResult[]> {
   const { data } = await apiClient.get<CatalogSearchResult[]>('/cards/catalog-search', {
-    params: { query },
+    params: { query, setId },
   });
+  return data;
+}
+
+export async function getCatalogSets(): Promise<CatalogSet[]> {
+  const { data } = await apiClient.get<CatalogSet[]>('/cards/catalog-sets');
   return data;
 }
 

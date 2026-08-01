@@ -87,6 +87,26 @@ export function BinderPage() {
             {slots.map((slot, i) =>
               slot.card ? (
                 <div key={`${slot.card.id}-${i}`} style={{ position: 'relative', aspectRatio: '3 / 4' }}>
+                  <div
+                    className="blueprint"
+                    style={{
+                      position: 'absolute',
+                      top: -14,
+                      right: 10,
+                      zIndex: 2,
+                      background: 'var(--color-bg)',
+                      padding: '3px 10px',
+                      filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.4))',
+                    }}
+                  >
+                    <i className="corner tl" />
+                    <i className="corner tr" />
+                    <i className="corner bl" />
+                    <i className="corner br" />
+                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 17, letterSpacing: '0.02em', color: 'var(--color-accent-700)' }}>
+                      {slot.card.price != null ? `$${slot.card.price.toFixed(2)}` : '—'}
+                    </span>
+                  </div>
                   <div className="duotone" style={{ width: '100%', height: '100%', border: '1px solid var(--color-divider)' }}>
                     {slot.card.imageUrl ? (
                       <img src={slot.card.imageUrl} alt={slot.card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

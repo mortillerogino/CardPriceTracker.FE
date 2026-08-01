@@ -59,6 +59,36 @@ would mean composing fixtures rather than the real hooks. If richer states
 are wanted later, the honest path is standing up a mock API layer for
 previews, not faking props the real components don't accept.
 
+## Re-sync log
+
+- **2026-08-01**: substantial changes had landed in all 4 synced components
+  since the 2026-07-29 sync (SearchPage rewritten for a required-set dropdown
+  + real RiftCodex search; BinderPage got price-tag badges + real card art;
+  CardTile's kicker changed to `{setName} · {cardNumber}`). Because this repo
+  has no real `.d.ts`/build (synth-entry mode), `sourceKeys` hash the emitted
+  wrapper stub/doc files, not the actual component logic living in
+  `_ds_bundle.js` — so the diff reported all 4 as `unchanged` by sourceKey,
+  but the **canary spot-check caught the real change** via `renderHashes`
+  (`render_churn`, 4/4 components). This is the system working as intended
+  for this repo's setup, not a bug — expect the same pattern on any future
+  sync where only internal component logic changes (no prop/doc changes).
+  Re-verified all 4 by reading the fresh screenshots; grades confirmed
+  `good`, re-uploaded, `report_validate` counts 4/4 clean.
+- **Orphaned `fonts/` in the remote project**: the remote DS project has a
+  full JetBrains Mono font family (32 `.ttf` files + `fonts.css`) that the
+  *current* local build does not produce (no `cfg.extraFonts`, and
+  `[FONT_MISSING]` still fires — the 2026-07-29 "accept the fallback" call is
+  still in effect). These must be leftovers from an earlier exploratory
+  config that shipped the real font before the fallback decision was made.
+  The anchored diff's `deletePaths` was empty on the 2026-08-01 re-sync, so
+  per the skill's own rule (trust the diff verbatim, never hand-derive
+  deletes on an anchored re-sync) they were left alone and NOT deleted.
+  They're harmless (an unreferenced `fonts/` dir the app just won't use) but
+  are drift worth resolving deliberately: either wire `cfg.extraFonts` to
+  actually ship the font (reverses the 07-29 decision) or manually clean up
+  the orphaned files in the project next time a non-anchored (full-review)
+  sync happens.
+
 ## Re-sync risks
 
 - If `src/main.tsx` or any new top-level-side-effect file gets added under
