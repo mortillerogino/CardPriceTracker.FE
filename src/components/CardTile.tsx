@@ -1,3 +1,5 @@
+import styles from './CardTile.module.css';
+
 const RARITY_TAG_CLASS: Record<string, string> = {
   common: 'tag-neutral',
   uncommon: 'tag-outline',
@@ -20,27 +22,23 @@ export function CardTile({ name, setName, cardNumber, imageUrl, rarity, quantity
   const rarityTagClass = rarity ? (RARITY_TAG_CLASS[rarity.toLowerCase()] ?? 'tag-neutral') : null;
 
   return (
-    <div className="card blueprint elev-sm" style={{ padding: 0, overflow: 'visible' }}>
+    <div className={`card blueprint elev-sm ${styles.root}`}>
       <i className="corner tl" />
       <i className="corner tr" />
       <i className="corner bl" />
       <i className="corner br" />
-      <div className="duotone" style={{ width: '100%', aspectRatio: '3 / 4' }}>
-        {imageUrl ? (
-          <img src={imageUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          'No art'
-        )}
+      <div className={`duotone ${styles.art}`}>
+        {imageUrl ? <img src={imageUrl} alt={name} className="cover-image" /> : 'No art'}
       </div>
-      <div style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+      <div className={styles.info}>
+        <div className={styles.infoTop}>
           <span className="card-kicker">
             {setName} · {cardNumber}
           </span>
           {rarity && <span className={`tag ${rarityTagClass}`}>{rarity}</span>}
         </div>
         <div className="card-title">{name}</div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
+        <div className={styles.actions}>
           {quantity > 0 && <span className="tag tag-outline">×{quantity} in binder</span>}
           <button
             type="button"
