@@ -27,13 +27,12 @@ export function MainLayout() {
     }
   }, [totalOwned]);
 
-  const isSearch = location.pathname === '/';
   const isBinder = location.pathname === '/binder';
 
   const [switching, setSwitching] = useState<View | null>(null);
   const [direction, setDirection] = useState<'left' | 'right'>('right');
-  const switchTimer = useRef<number>();
-  const navigateTimer = useRef<number>();
+  const switchTimer = useRef<number | undefined>(undefined);
+  const navigateTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => () => {
     window.clearTimeout(switchTimer.current);

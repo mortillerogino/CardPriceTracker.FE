@@ -40,3 +40,8 @@ export async function addFromCatalog(input: CreateCardInput): Promise<Card> {
   const { data } = await apiClient.post<Card>('/cards/catalog-search/add', input);
   return data;
 }
+
+export async function refreshPrices(): Promise<number> {
+  const { data } = await apiClient.post<number>('/cards/refresh-prices');
+  return data;
+}
