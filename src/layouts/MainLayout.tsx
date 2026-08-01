@@ -40,9 +40,9 @@ export function MainLayout() {
     if (location.pathname === path || switching) return;
     setSwitching(target);
     setDirection(target === 'binder' ? 'right' : 'left');
+    navigate(path);
     window.clearTimeout(switchTimer.current);
     switchTimer.current = window.setTimeout(() => {
-      navigate(path);
       setSwitching(null);
     }, LOADING_DURATION_MS);
   }
