@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useDecrementCardQuantity, useOwnedCards } from '../hooks/useCards';
+import { getOwnedCards } from '../api/cards';
+import { useDecrementCardQuantity, useOwnedCards, useRefreshPrices } from '../hooks/useCards';
 import type { Card } from '../types/card';
-import { basePriceForCard, simulateNewPrice } from '../utils/priceScan';
 import styles from './BinderPage.module.css';
 
 const POCKETS_PER_PAGE = 9;
@@ -22,6 +22,7 @@ interface ScanResult {
 export function BinderPage() {
   const { data: ownedCards, isLoading, isError } = useOwnedCards();
   const decrementQuantity = useDecrementCardQuantity();
+  const refreshPrices = useRefreshPrices();
   const [page, setPage] = useState(0);
 
   const [scanPhase, setScanPhase] = useState<ScanPhase>('idle');
@@ -29,12 +30,12 @@ export function BinderPage() {
   const [scanTotal, setScanTotal] = useState(0);
   const [scanCardName, setScanCardName] = useState('');
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
-  const [mockPrices, setMockPrices] = useState<Record<string, number>>({});
 
-  const tickTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const successTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const clearGlowTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const tickTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const clearGlowTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(
     () => () => {
@@ -53,50 +54,22 @@ export function BinderPage() {
     return pockets;
   }, [ownedCards]);
 
-  const getDisplayPrice = (card: Card): number | null => mockPrices[card.id] ?? card.price ?? null;
-
   const startScan = () => setScanPhase('confirm');
   const cancelScan = () => setScanPhase('idle');
 
+  // Purely cosmetic — cycles through pockets while the real refresh request is in flight, since
+  // its duration depends on the API (near-instant once card ids are cached, slower on first run).
   const tick = (pockets: Card[], index: number) => {
     tickTimerRef.current = setTimeout(() => {
-      const next = index + 1;
-      if (next >= pockets.length) {
-        finishScan();
-      } else {
-        setScanIndex(next);
-        setScanCardName(pockets[next].name);
-        tick(pockets, next);
-      }
+      const next = (index + 1) % pockets.length;
+      setScanIndex(next);
+      setScanCardName(pockets[next].name);
+      tick(pockets, next);
     }, SCAN_TICK_MS);
   };
 
-  const finishScan = () => {
-    const cards = ownedCards ?? [];
-    let up = 0;
-    let down = 0;
-    let unchanged = 0;
-    const changedIds: string[] = [];
-    const nextMockPrices = { ...mockPrices };
-
-    cards.forEach((card) => {
-      const previousPrice = mockPrices[card.id] ?? card.price ?? null;
-      const newPrice = previousPrice == null ? basePriceForCard(card) : simulateNewPrice(previousPrice);
-      nextMockPrices[card.id] = newPrice;
-
-      if (previousPrice == null || newPrice > previousPrice + 0.004) {
-        up++;
-        changedIds.push(card.id);
-      } else if (newPrice < previousPrice - 0.004) {
-        down++;
-        changedIds.push(card.id);
-      } else {
-        unchanged++;
-      }
-    });
-
-    setMockPrices(nextMockPrices);
-    setScanResult({ total: cards.length, up, down, unchanged });
+  const showResult = (result: ScanResult, changedIds: string[]) => {
+    setScanResult(result);
     setHighlightedIds(new Set(changedIds));
     setScanPhase('success');
 
@@ -106,12 +79,49 @@ export function BinderPage() {
     }, SUCCESS_DISPLAY_MS);
   };
 
-  const confirmScan = () => {
+  const confirmScan = async () => {
+    const previousPrices = new Map((ownedCards ?? []).map((card) => [card.id, card.price]));
+
+    setScanError(null);
     setScanPhase('scanning');
     setScanIndex(0);
     setScanTotal(flatPockets.length);
     setScanCardName(flatPockets[0]?.name ?? '');
     tick(flatPockets, 0);
+
+    try {
+      await refreshPrices.mutateAsync();
+      const refreshedCards = await getOwnedCards();
+      clearTimeout(tickTimerRef.current);
+
+      let up = 0;
+      let down = 0;
+      let unchanged = 0;
+      const changedIds: string[] = [];
+
+      refreshedCards.forEach((card) => {
+        const previousPrice = previousPrices.get(card.id) ?? null;
+        const newPrice = card.price;
+
+        if (newPrice == null || previousPrice === newPrice) {
+          unchanged++;
+        } else if (previousPrice == null || newPrice > previousPrice + 0.004) {
+          up++;
+          changedIds.push(card.id);
+        } else if (newPrice < previousPrice - 0.004) {
+          down++;
+          changedIds.push(card.id);
+        } else {
+          unchanged++;
+        }
+      });
+
+      showResult({ total: refreshedCards.length, up, down, unchanged }, changedIds);
+    } catch {
+      clearTimeout(tickTimerRef.current);
+      setScanPhase('idle');
+      setScanError('Failed to refresh prices. Check that the API is running and try again.');
+    }
   };
 
   const totalOwned = flatPockets.length;
@@ -211,6 +221,8 @@ export function BinderPage() {
         </button>
       </div>
 
+      {scanError && <p className="text-error">{scanError}</p>}
+
       <div className={styles.binderFrame}>
         <div className={`blueprint ${styles.binderPanel}`}>
           <i className="corner tl" />
@@ -232,7 +244,7 @@ export function BinderPage() {
                   </div>
                 );
               }
-              const displayPrice = getDisplayPrice(card);
+              const displayPrice = card.price;
               return (
                 <div key={`${card.id}-${i}`} className={styles.pocket}>
                   <div className={`blueprint ${styles.priceTag} ${highlightedIds.has(card.id) ? styles.priceTagGlow : ''}`}>

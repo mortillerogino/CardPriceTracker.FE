@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { addFromCatalog, catalogSearch, decrementCardQuantity, deleteCard, getCatalogSets, getOwnedCards } from '../api/cards';
+import { addFromCatalog, catalogSearch, decrementCardQuantity, deleteCard, getCatalogSets, getOwnedCards, refreshPrices } from '../api/cards';
 import type { CreateCardInput } from '../types/card';
 
 const ownedQueryKey = ['cards', 'owned'] as const;
@@ -59,6 +59,15 @@ export function useDecrementCardQuantity() {
 
   return useMutation({
     mutationFn: (id: string) => decrementCardQuantity(id),
+    onSuccess: () => invalidateCardQueries(queryClient),
+  });
+}
+
+export function useRefreshPrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: refreshPrices,
     onSuccess: () => invalidateCardQueries(queryClient),
   });
 }
