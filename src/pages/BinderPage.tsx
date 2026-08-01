@@ -1,16 +1,49 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDecrementCardQuantity, useOwnedCards } from '../hooks/useCards';
 import type { Card } from '../types/card';
+import { basePriceForCard, simulateNewPrice } from '../utils/priceScan';
 import styles from './BinderPage.module.css';
 
 const POCKETS_PER_PAGE = 9;
 const RING_HOLES = 6;
+const SCAN_TICK_MS = 120;
+const SUCCESS_DISPLAY_MS = 1900;
+
+type ScanPhase = 'idle' | 'confirm' | 'scanning' | 'success';
+
+interface ScanResult {
+  total: number;
+  up: number;
+  down: number;
+  unchanged: number;
+}
 
 export function BinderPage() {
   const { data: ownedCards, isLoading, isError } = useOwnedCards();
   const decrementQuantity = useDecrementCardQuantity();
   const [page, setPage] = useState(0);
+
+  const [scanPhase, setScanPhase] = useState<ScanPhase>('idle');
+  const [scanIndex, setScanIndex] = useState(0);
+  const [scanTotal, setScanTotal] = useState(0);
+  const [scanCardName, setScanCardName] = useState('');
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
+  const [mockPrices, setMockPrices] = useState<Record<string, number>>({});
+
+  const tickTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const successTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const clearGlowTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(
+    () => () => {
+      clearTimeout(tickTimerRef.current);
+      clearTimeout(successTimerRef.current);
+      clearTimeout(clearGlowTimerRef.current);
+    },
+    [],
+  );
 
   const flatPockets = useMemo(() => {
     const pockets: Card[] = [];
@@ -19,6 +52,67 @@ export function BinderPage() {
     });
     return pockets;
   }, [ownedCards]);
+
+  const getDisplayPrice = (card: Card): number | null => mockPrices[card.id] ?? card.price ?? null;
+
+  const startScan = () => setScanPhase('confirm');
+  const cancelScan = () => setScanPhase('idle');
+
+  const tick = (pockets: Card[], index: number) => {
+    tickTimerRef.current = setTimeout(() => {
+      const next = index + 1;
+      if (next >= pockets.length) {
+        finishScan();
+      } else {
+        setScanIndex(next);
+        setScanCardName(pockets[next].name);
+        tick(pockets, next);
+      }
+    }, SCAN_TICK_MS);
+  };
+
+  const finishScan = () => {
+    const cards = ownedCards ?? [];
+    let up = 0;
+    let down = 0;
+    let unchanged = 0;
+    const changedIds: string[] = [];
+    const nextMockPrices = { ...mockPrices };
+
+    cards.forEach((card) => {
+      const previousPrice = mockPrices[card.id] ?? card.price ?? null;
+      const newPrice = previousPrice == null ? basePriceForCard(card) : simulateNewPrice(previousPrice);
+      nextMockPrices[card.id] = newPrice;
+
+      if (previousPrice == null || newPrice > previousPrice + 0.004) {
+        up++;
+        changedIds.push(card.id);
+      } else if (newPrice < previousPrice - 0.004) {
+        down++;
+        changedIds.push(card.id);
+      } else {
+        unchanged++;
+      }
+    });
+
+    setMockPrices(nextMockPrices);
+    setScanResult({ total: cards.length, up, down, unchanged });
+    setHighlightedIds(new Set(changedIds));
+    setScanPhase('success');
+
+    successTimerRef.current = setTimeout(() => {
+      setScanPhase('idle');
+      clearGlowTimerRef.current = setTimeout(() => setHighlightedIds(new Set()), SUCCESS_DISPLAY_MS);
+    }, SUCCESS_DISPLAY_MS);
+  };
+
+  const confirmScan = () => {
+    setScanPhase('scanning');
+    setScanIndex(0);
+    setScanTotal(flatPockets.length);
+    setScanCardName(flatPockets[0]?.name ?? '');
+    tick(flatPockets, 0);
+  };
 
   const totalOwned = flatPockets.length;
   const totalPages = Math.max(1, Math.ceil(totalOwned / POCKETS_PER_PAGE));
@@ -98,6 +192,25 @@ export function BinderPage() {
 
   return (
     <div className="page page-narrow">
+      <div className={styles.toolbar}>
+        <div>
+          <div className="card-kicker">Binder</div>
+          <h2 className={styles.toolbarHeading}>{totalOwned} specimens catalogued</h2>
+        </div>
+        <button type="button" className="btn btn-primary blueprint" onClick={startScan}>
+          <i className="corner tl" />
+          <i className="corner tr" />
+          <i className="corner bl" />
+          <i className="corner br" />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+            <path d="M11 8v3M11 14v.01" />
+          </svg>
+          Scan prices
+        </button>
+      </div>
+
       <div className={styles.binderFrame}>
         <div className={`blueprint ${styles.binderPanel}`}>
           <i className="corner tl" />
@@ -110,43 +223,42 @@ export function BinderPage() {
             ))}
           </div>
           <div className={styles.pocketGrid}>
-            {slots.map((slot, i) =>
-              slot.card ? (
-                <div key={`${slot.card.id}-${i}`} className={styles.pocket}>
-                  <div className={`blueprint ${styles.priceTag}`}>
+            {slots.map((slot, i) => {
+              const card = slot.card;
+              if (!card) {
+                return (
+                  <div key={`empty-${i}`} className={styles.emptyPocket}>
+                    <span className={styles.emptyPocketLabel}>{slot.slotLabel}</span>
+                  </div>
+                );
+              }
+              const displayPrice = getDisplayPrice(card);
+              return (
+                <div key={`${card.id}-${i}`} className={styles.pocket}>
+                  <div className={`blueprint ${styles.priceTag} ${highlightedIds.has(card.id) ? styles.priceTagGlow : ''}`}>
                     <i className="corner tl" />
                     <i className="corner tr" />
                     <i className="corner bl" />
                     <i className="corner br" />
-                    <span className={styles.priceTagText}>
-                      {slot.card.price != null ? `$${slot.card.price.toFixed(2)}` : '—'}
-                    </span>
+                    <span className={styles.priceTagText}>{displayPrice != null ? `$${displayPrice.toFixed(2)}` : '—'}</span>
                   </div>
                   <div className={`duotone ${styles.pocketArt}`}>
-                    {slot.card.imageUrl ? (
-                      <img src={slot.card.imageUrl} alt={slot.card.name} className="cover-image" />
-                    ) : (
-                      'Art'
-                    )}
+                    {card.imageUrl ? <img src={card.imageUrl} alt={card.name} className="cover-image" /> : 'Art'}
                   </div>
                   <button
                     type="button"
                     className={`btn btn-secondary btn-icon ${styles.removeBtn}`}
                     aria-label="Remove one"
-                    onClick={() => decrementQuantity.mutate(slot.card!.id)}
+                    onClick={() => decrementQuantity.mutate(card.id)}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 12h14" />
                     </svg>
                   </button>
-                  <span className={styles.pocketLabel}>{slot.card.cardNumber}</span>
+                  <span className={styles.pocketLabel}>{card.cardNumber}</span>
                 </div>
-              ) : (
-                <div key={`empty-${i}`} className={styles.emptyPocket}>
-                  <span className={styles.emptyPocketLabel}>{slot.slotLabel}</span>
-                </div>
-              ),
-            )}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -168,6 +280,80 @@ export function BinderPage() {
           </svg>
         </button>
       </div>
+
+      {scanPhase === 'confirm' && (
+        <div className={styles.overlay}>
+          <div className={`blueprint ${styles.modal}`}>
+            <i className="corner tl" />
+            <i className="corner tr" />
+            <i className="corner bl" />
+            <i className="corner br" />
+            <div className="card-kicker">Price scan</div>
+            <h3 className={styles.modalTitle}>Scan prices from external source?</h3>
+            <p className={`card-body ${styles.modalBody}`}>
+              This checks the latest market price for all {totalOwned} cards in your binder.
+            </p>
+            <div className={styles.modalActions}>
+              <button type="button" className="btn btn-ghost" onClick={cancelScan}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary blueprint" onClick={confirmScan}>
+                <i className="corner tl" />
+                <i className="corner tr" />
+                <i className="corner bl" />
+                <i className="corner br" />
+                Confirm scan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {scanPhase === 'scanning' && (
+        <div className={`${styles.overlay} ${styles.overlayDark}`}>
+          <div className={`blueprint ${styles.modal}`}>
+            <i className="corner tl" />
+            <i className="corner tr" />
+            <i className="corner bl" />
+            <i className="corner br" />
+            <div className="card-kicker">Price scan</div>
+            <div className={styles.scanCounter}>
+              Scanning {Math.min(scanIndex + 1, scanTotal)} / {scanTotal}
+              <span className={styles.scanCursor}>_</span>
+            </div>
+            <p className={`card-body ${styles.scanSubtext}`}>Checking {scanCardName}…</p>
+            <div className={styles.progressTrack}>
+              <div
+                className={styles.progressFill}
+                style={{ width: `${scanTotal > 0 ? Math.round(((scanIndex + 1) / scanTotal) * 100) : 0}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {scanPhase === 'success' && scanResult && (
+        <div className={`${styles.overlay} ${styles.overlayDark}`}>
+          <div className={`blueprint ${styles.modal}`}>
+            <i className="corner tl" />
+            <i className="corner tr" />
+            <i className="corner bl" />
+            <i className="corner br" />
+            <div className={styles.checkBadge}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12l5 5L20 7" />
+              </svg>
+            </div>
+            <div className="card-kicker">Scan complete</div>
+            <h3 className={styles.successTitle}>{scanResult.total} prices updated</h3>
+            <div className={styles.resultTags}>
+              <span className="tag tag-accent">▲ {scanResult.up} up</span>
+              <span className="tag tag-accent-2">▼ {scanResult.down} down</span>
+              <span className="tag tag-outline">= {scanResult.unchanged} unchanged</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
