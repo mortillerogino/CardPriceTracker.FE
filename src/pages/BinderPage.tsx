@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDecrementCardQuantity, useOwnedCards } from '../hooks/useCards';
 import type { Card } from '../types/card';
+import styles from './BinderPage.module.css';
 
 const POCKETS_PER_PAGE = 9;
 const RING_HOLES = 6;
@@ -32,7 +33,7 @@ export function BinderPage() {
 
   if (isLoading) {
     return (
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: 'var(--space-8) var(--space-4)' }}>
+      <div className="page page-narrow">
         <p className="text-muted">Loading binder...</p>
       </div>
     );
@@ -40,21 +41,18 @@ export function BinderPage() {
 
   if (totalOwned === 0) {
     return (
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: 'var(--space-8) var(--space-4)' }}>
-        <div
-          className="blueprint"
-          style={{ background: 'var(--color-bg)', padding: 'var(--space-8)', textAlign: 'center', maxWidth: 480, margin: '0 auto', border: '1px solid var(--color-divider)' }}
-        >
+      <div className="page page-narrow">
+        <div className={`blueprint ${styles.emptyPanel}`}>
           <i className="corner tl" />
           <i className="corner tr" />
           <i className="corner bl" />
           <i className="corner br" />
           <div className="card-kicker">Binder</div>
-          <h3 style={{ margin: '6px 0 var(--space-2)' }}>No specimens catalogued yet</h3>
-          <p className="card-body" style={{ maxWidth: '38ch', margin: '0 auto var(--space-4)' }}>
+          <h3 className={styles.emptyTitle}>No specimens catalogued yet</h3>
+          <p className={`card-body ${styles.emptyBody}`}>
             Search the field catalog and add specimens — they'll fill this binder automatically.
           </p>
-          <Link to="/" className="btn btn-primary blueprint" style={{ display: 'inline-flex', textDecoration: 'none' }}>
+          <Link to="/" className={`btn btn-primary blueprint ${styles.emptyCta}`}>
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
@@ -71,80 +69,53 @@ export function BinderPage() {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: 'var(--space-8) var(--space-4)' }}>
-      <div style={{ background: 'var(--color-accent-900)', padding: 'var(--space-6)' }}>
-        <div className="blueprint" style={{ background: 'var(--color-bg)', padding: 'var(--space-6)', display: 'flex', gap: 'var(--space-4)', border: '1px solid var(--color-divider)' }}>
+    <div className="page page-narrow">
+      <div className={styles.binderFrame}>
+        <div className={`blueprint ${styles.binderPanel}`}>
           <i className="corner tl" />
           <i className="corner tr" />
           <i className="corner bl" />
           <i className="corner br" />
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '2px 0' }}>
+          <div className={styles.ringHoles}>
             {Array.from({ length: RING_HOLES }, (_, i) => (
-              <span key={i} style={{ width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--color-divider)', display: 'block' }} />
+              <span key={i} className={styles.ringHole} />
             ))}
           </div>
-          <div style={{ flex: 1, minWidth: 0, display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 'var(--space-3)' }}>
+          <div className={styles.pocketGrid}>
             {slots.map((slot, i) =>
               slot.card ? (
-                <div key={`${slot.card.id}-${i}`} style={{ position: 'relative', aspectRatio: '3 / 4' }}>
-                  <div
-                    className="blueprint"
-                    style={{
-                      position: 'absolute',
-                      top: -14,
-                      right: 10,
-                      zIndex: 2,
-                      background: 'var(--color-bg)',
-                      padding: '3px 10px',
-                      filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.4))',
-                    }}
-                  >
+                <div key={`${slot.card.id}-${i}`} className={styles.pocket}>
+                  <div className={`blueprint ${styles.priceTag}`}>
                     <i className="corner tl" />
                     <i className="corner tr" />
                     <i className="corner bl" />
                     <i className="corner br" />
-                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 17, letterSpacing: '0.02em', color: 'var(--color-accent-700)' }}>
+                    <span className={styles.priceTagText}>
                       {slot.card.price != null ? `$${slot.card.price.toFixed(2)}` : '—'}
                     </span>
                   </div>
-                  <div className="duotone" style={{ width: '100%', height: '100%', border: '1px solid var(--color-divider)' }}>
+                  <div className={`duotone ${styles.pocketArt}`}>
                     {slot.card.imageUrl ? (
-                      <img src={slot.card.imageUrl} alt={slot.card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={slot.card.imageUrl} alt={slot.card.name} className="cover-image" />
                     ) : (
                       'Art'
                     )}
                   </div>
                   <button
                     type="button"
-                    className="btn btn-secondary btn-icon"
+                    className={`btn btn-secondary btn-icon ${styles.removeBtn}`}
                     aria-label="Remove one"
                     onClick={() => decrementQuantity.mutate(slot.card!.id)}
-                    style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, background: 'var(--color-bg)' }}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 12h14" />
                     </svg>
                   </button>
-                  <span
-                    style={{
-                      position: 'absolute',
-                      bottom: 3,
-                      left: 4,
-                      fontSize: 9,
-                      letterSpacing: '0.04em',
-                      color: '#fff',
-                      textShadow: '0 0 3px rgba(0,0,0,0.6)',
-                    }}
-                  >
-                    {slot.card.cardNumber}
-                  </span>
+                  <span className={styles.pocketLabel}>{slot.card.cardNumber}</span>
                 </div>
               ) : (
-                <div
-                  key={`empty-${i}`}
-                  style={{ aspectRatio: '3 / 4', border: '1px dashed var(--color-neutral-400)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: 11, letterSpacing: '0.05em', color: 'var(--color-neutral-500)' }}>{slot.slotLabel}</span>
+                <div key={`empty-${i}`} className={styles.emptyPocket}>
+                  <span className={styles.emptyPocketLabel}>{slot.slotLabel}</span>
                 </div>
               ),
             )}
@@ -152,14 +123,14 @@ export function BinderPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-4)', marginTop: 'var(--space-4)' }}>
+      <div className={styles.pager}>
         <button type="button" className="btn btn-ghost" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={currentPage <= 0}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="m15 18-6-6 6-6" />
           </svg>
           Prev
         </button>
-        <span style={{ fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', fontSize: 12, textTransform: 'uppercase' }}>
+        <span className={styles.pagerLabel}>
           Page {String(currentPage + 1).padStart(2, '0')} / {String(totalPages).padStart(2, '0')}
         </span>
         <button type="button" className="btn btn-ghost" onClick={() => setPage((p) => p + 1)} disabled={currentPage >= totalPages - 1}>

@@ -1,0 +1,97 @@
+.label {
+  composes: section-label from global;
+  margin-bottom: 10px;
+}
+
+.form {
+  display: flex;
+  gap: var(--space-3);
+  align-items: stretch;
+  max-width: 900px;
+}
+
+.queryWrap {
+  position: relative;
+  flex: 1;
+}
+
+.queryIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-neutral-500);
+  pointer-events: none;
+}
+
+.queryInput {
+  padding-left: 34px;
+}
+
+.setSelectWrap {
+  position: relative;
+  width: 200px;
+  flex-shrink: 0;
+}
+
+.setSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding-right: 30px;
+}
+
+.setSelectPlaceholder {
+  color: var(--color-neutral-500);
+}
+
+.setSelectFilled {
+  color: var(--color-text);
+}
+
+.setChevron {
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-accent);
+  pointer-events: none;
+}
+
+.submit {
+  flex-shrink: 0;
+  padding: 0 20px;
+}
+
+.hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-neutral-500);
+  max-width: 900px;
+}
+
+.results {
+  margin-top: var(--space-8);
+  max-width: 900px;
+}
+
+.resultsLabel {
+  composes: section-label from global;
+  margin-bottom: 14px;
+}
+
+.resultsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.noResults {
+  padding: var(--space-4);
+  color: var(--color-neutral-500);
+  font-size: 13px;
+}
+
+.addError {
+  margin-top: var(--space-4);
+}

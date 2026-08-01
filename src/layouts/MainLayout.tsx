@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useOwnedCards } from '../hooks/useCards';
+import styles from './MainLayout.module.css';
 
 export function MainLayout() {
   const location = useLocation();
@@ -24,12 +25,12 @@ export function MainLayout() {
   const isBinder = location.pathname === '/binder';
 
   return (
-    <div style={{ minHeight: '100vh' }}>
-      <nav className="nav" style={{ borderBottom: '1px solid var(--color-divider)', position: 'sticky', top: 0, background: 'var(--color-bg)', zIndex: 10 }}>
+    <div className={styles.root}>
+      <nav className={`nav ${styles.header}`}>
         <span className="nav-brand">
-          CardPriceTracker<span style={{ color: 'var(--color-accent)' }}> — Field Catalog</span>
+          CardPriceTracker<span className={styles.brandAccent}> — Field Catalog</span>
         </span>
-        <div className="seg" role="radiogroup" aria-label="View" style={{ marginLeft: 'auto' }}>
+        <div className={`seg ${styles.viewToggle}`} role="radiogroup" aria-label="View">
           <label className="seg-opt">
             <input type="radio" name="view-toggle" checked={isSearch} onChange={() => navigate('/')} />
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -47,12 +48,12 @@ export function MainLayout() {
             Binder
           </label>
         </div>
-        <Link to="/binder" className="btn btn-secondary blueprint" style={{ textDecoration: 'none' }}>
+        <Link to="/binder" className={`btn btn-secondary blueprint ${styles.binderLink}`}>
           <i className="corner tl" />
           <i className="corner tr" />
           <i className="corner bl" />
           <i className="corner br" />
-          <span className={bounce ? 'badge-bounce' : ''} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span className={`${styles.badge} ${bounce ? 'badge-bounce' : ''}`}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 7v14" />
               <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />

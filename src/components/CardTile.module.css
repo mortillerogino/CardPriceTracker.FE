@@ -1,0 +1,31 @@
+.root {
+  padding: 0;
+  overflow: visible;
+}
+
+.art {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+}
+
+.info {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.infoTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}

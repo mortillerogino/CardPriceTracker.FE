@@ -308,3 +308,36 @@ h1, h2, h3 {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+.cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Page shells */
+.page {
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4);
+}
+
+.page-narrow {
+  max-width: 900px;
+}
+
+.page-wide {
+  max-width: 1180px;
+}
+
+/* Small uppercase section label, e.g. "Search specimens" / "Results" */
+.section-label {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+}
+
+.text-error {
+  color: #e5484d;
+}
