@@ -14,7 +14,10 @@
   color: var(--color-accent);
 }
 
-.viewToggle {
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
   margin-left: auto;
 }
 
@@ -26,4 +29,18 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+@media (max-width: 640px) {
+  .controls {
+    flex: 1 1 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 420px) {
+  .brandAccent {
+    display: none;
+  }
 }

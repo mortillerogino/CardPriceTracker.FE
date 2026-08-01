@@ -7,6 +7,7 @@ type View = 'search' | 'binder';
 
 const LOADING_DURATION_MS = 3000;
 const COVER_DURATION_MS = Math.min(1400, Math.max(700, LOADING_DURATION_MS * 0.6));
+const OVERLAY_FADE_MS = 180;
 
 export function MainLayout() {
   const location = useLocation();
@@ -32,16 +33,23 @@ export function MainLayout() {
   const [switching, setSwitching] = useState<View | null>(null);
   const [direction, setDirection] = useState<'left' | 'right'>('right');
   const switchTimer = useRef<number>();
+  const navigateTimer = useRef<number>();
 
-  useEffect(() => () => window.clearTimeout(switchTimer.current), []);
+  useEffect(() => () => {
+    window.clearTimeout(switchTimer.current);
+    window.clearTimeout(navigateTimer.current);
+  }, []);
 
   function switchTo(target: View) {
     const path = target === 'binder' ? '/binder' : '/';
     if (location.pathname === path || switching) return;
     setSwitching(target);
     setDirection(target === 'binder' ? 'right' : 'left');
-    navigate(path);
     window.clearTimeout(switchTimer.current);
+    window.clearTimeout(navigateTimer.current);
+    navigateTimer.current = window.setTimeout(() => {
+      navigate(path);
+    }, OVERLAY_FADE_MS);
     switchTimer.current = window.setTimeout(() => {
       setSwitching(null);
     }, LOADING_DURATION_MS);
@@ -55,37 +63,39 @@ export function MainLayout() {
         <span className="nav-brand">
           Betsy's Binder<span className={styles.brandAccent}> — Personal Card Library</span>
         </span>
-        <div className={`seg ${styles.viewToggle}`} role="radiogroup" aria-label="View">
-          <label className="seg-opt">
-            <input type="radio" name="view-toggle" checked={activeToggle === 'search'} onChange={() => switchTo('search')} />
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-            Search
-          </label>
-          <label className="seg-opt">
-            <input type="radio" name="view-toggle" checked={activeToggle === 'binder'} onChange={() => switchTo('binder')} />
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 7v14" />
-              <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
-            </svg>
-            Binder
-          </label>
+        <div className={styles.controls}>
+          <div className={`seg ${styles.viewToggle}`} role="radiogroup" aria-label="View">
+            <label className="seg-opt">
+              <input type="radio" name="view-toggle" checked={activeToggle === 'search'} onChange={() => switchTo('search')} />
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              Search
+            </label>
+            <label className="seg-opt">
+              <input type="radio" name="view-toggle" checked={activeToggle === 'binder'} onChange={() => switchTo('binder')} />
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 7v14" />
+                <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+              </svg>
+              Binder
+            </label>
+          </div>
+          <Link to="/binder" className={`btn btn-secondary blueprint ${styles.binderLink}`}>
+            <i className="corner tl" />
+            <i className="corner tr" />
+            <i className="corner bl" />
+            <i className="corner br" />
+            <span className={`${styles.badge} ${bounce ? 'badge-bounce' : ''}`}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 7v14" />
+                <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+              </svg>
+              {totalOwned} catalogued
+            </span>
+          </Link>
         </div>
-        <Link to="/binder" className={`btn btn-secondary blueprint ${styles.binderLink}`}>
-          <i className="corner tl" />
-          <i className="corner tr" />
-          <i className="corner bl" />
-          <i className="corner br" />
-          <span className={`${styles.badge} ${bounce ? 'badge-bounce' : ''}`}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 7v14" />
-              <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
-            </svg>
-            {totalOwned} catalogued
-          </span>
-        </Link>
       </nav>
       <main style={{ position: 'relative', minHeight: 600 }}>
         <div
@@ -98,14 +108,14 @@ export function MainLayout() {
         {switching && (
           <div
             style={{
-              position: 'absolute',
+              position: 'fixed',
               inset: 0,
               zIndex: 20,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               background: 'var(--color-bg)',
-              animation: 'overlayIn 180ms ease both',
+              animation: `overlayIn ${OVERLAY_FADE_MS}ms ease both`,
               perspective: '1200px',
             }}
           >

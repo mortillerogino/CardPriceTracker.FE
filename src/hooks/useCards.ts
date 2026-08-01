@@ -31,6 +31,8 @@ export function useOwnedCards() {
   return useQuery({
     queryKey: ownedQueryKey,
     queryFn: getOwnedCards,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 
