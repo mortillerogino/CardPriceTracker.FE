@@ -18,6 +18,11 @@
   animation: badgeBounce 0.6s ease;
 }
 
+select.input option {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
 :root {
   --color-bg: #0b0e14;
   --color-surface: #11151f;

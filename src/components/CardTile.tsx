@@ -34,13 +34,12 @@ export function CardTile({ name, setName, cardNumber, imageUrl, rarity, quantity
       </div>
       <div style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-          <span className="card-kicker">{cardNumber}</span>
+          <span className="card-kicker">
+            {setName} · {cardNumber}
+          </span>
           {rarity && <span className={`tag ${rarityTagClass}`}>{rarity}</span>}
         </div>
         <div className="card-title">{name}</div>
-        <p className="card-body" style={{ margin: 0 }}>
-          {setName}
-        </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
           {quantity > 0 && <span className="tag tag-outline">×{quantity} in binder</span>}
           <button

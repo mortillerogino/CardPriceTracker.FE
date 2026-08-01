@@ -5,6 +5,7 @@ export interface Card {
   cardNumber: string;
   quantity: number;
   imageUrl: string | null;
+  price: number | null;
   createdAtUtc: string;
 }
 
@@ -29,4 +30,9 @@ export interface CatalogSearchResult {
   imageUrl: string | null;
   rarity: string | null;
   ownedQuantity: number;
+}
+
+export interface CatalogSet {
+  setId: string;
+  name: string;
 }

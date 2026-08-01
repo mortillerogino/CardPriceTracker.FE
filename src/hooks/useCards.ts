@@ -1,20 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { addFromCatalog, catalogSearch, decrementCardQuantity, deleteCard, getOwnedCards } from '../api/cards';
+import { addFromCatalog, catalogSearch, decrementCardQuantity, deleteCard, getCatalogSets, getOwnedCards } from '../api/cards';
 import type { CreateCardInput } from '../types/card';
 
 const ownedQueryKey = ['cards', 'owned'] as const;
-const catalogSearchQueryKey = (query: string) => ['catalog-search', query] as const;
+const catalogSearchQueryKey = (query: string, setId: string) => ['catalog-search', query, setId] as const;
+const catalogSetsQueryKey = ['catalog-sets'] as const;
 
 function invalidateCardQueries(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ['cards'] });
   queryClient.invalidateQueries({ queryKey: ['catalog-search'] });
 }
 
-export function useCatalogSearch(query: string) {
+export function useCatalogSearch(query: string, setId: string) {
   return useQuery({
-    queryKey: catalogSearchQueryKey(query),
-    queryFn: () => catalogSearch(query),
-    enabled: query.trim().length >= 5,
+    queryKey: catalogSearchQueryKey(query, setId),
+    queryFn: () => catalogSearch(query, setId),
+    enabled: query.trim().length > 0 && setId.trim().length > 0,
+  });
+}
+
+export function useCatalogSets() {
+  return useQuery({
+    queryKey: catalogSetsQueryKey,
+    queryFn: getCatalogSets,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
