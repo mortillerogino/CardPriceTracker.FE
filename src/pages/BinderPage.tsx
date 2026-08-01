@@ -8,7 +8,7 @@ const POCKETS_PER_PAGE = 9;
 const RING_HOLES = 6;
 
 export function BinderPage() {
-  const { data: ownedCards, isLoading } = useOwnedCards();
+  const { data: ownedCards, isLoading, isError } = useOwnedCards();
   const decrementQuantity = useDecrementCardQuantity();
   const [page, setPage] = useState(0);
 
@@ -34,7 +34,35 @@ export function BinderPage() {
   if (isLoading) {
     return (
       <div className="page page-narrow">
-        <p className="text-muted">Loading binder...</p>
+        <div className={`blueprint ${styles.loadingPanel}`}>
+          <i className="corner tl" />
+          <i className="corner tr" />
+          <i className="corner bl" />
+          <i className="corner br" />
+          <div className="card-kicker">Binder</div>
+          <p className={styles.loadingText}>
+            LOADING BINDER<span className={styles.loadingCursor}>_</span>
+          </p>
+          <div className={styles.loadingBar}>
+            <div className={styles.loadingBarFill} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="page page-narrow">
+        <div className={`blueprint ${styles.errorPanel}`}>
+          <i className="corner tl" />
+          <i className="corner tr" />
+          <i className="corner bl" />
+          <i className="corner br" />
+          <div className="card-kicker">Binder</div>
+          <h3 className={styles.errorTitle}>Connection lost</h3>
+          <p className={`card-body ${styles.errorBody}`}>Couldn't reach the catalog service. Check that the API is running and try again.</p>
+        </div>
       </div>
     );
   }
