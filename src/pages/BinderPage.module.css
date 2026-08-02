@@ -348,6 +348,7 @@
 }
 
 .progressTrack {
+  position: relative;
   width: 100%;
   height: 3px;
   background: var(--color-divider);
@@ -355,11 +356,17 @@
   overflow: hidden;
 }
 
-.progressFill {
-  height: 100%;
+/* Indeterminate — there's no per-card completion signal from the API, so this sweeps
+   continuously rather than filling to a fraction that would imply real progress. */
+.progressSweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 40%;
   background: var(--color-accent);
   border-radius: 2px;
-  transition: width 100ms linear;
+  animation: scanSweep 1.2s ease-in-out infinite;
 }
 
 .successTitle {

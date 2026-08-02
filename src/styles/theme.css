@@ -10,6 +10,12 @@
   100% { transform: scale(1); }
 }
 
+@keyframes addSuccessGlow {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79, 209, 197, 0.55); }
+  35% { transform: scale(1.15); box-shadow: 0 0 0 8px rgba(79, 209, 197, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79, 209, 197, 0); }
+}
+
 @keyframes cardFlip {
   0% { transform: rotateY(0deg); }
   100% { transform: rotateY(180deg); }
@@ -46,6 +52,10 @@
 
 .badge-bounce {
   animation: badgeBounce 0.6s ease;
+}
+
+.add-success {
+  animation: addSuccessGlow 0.7s ease;
 }
 
 select.input option {

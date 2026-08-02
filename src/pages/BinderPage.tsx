@@ -7,7 +7,6 @@ import styles from './BinderPage.module.css';
 
 const POCKETS_PER_PAGE = 9;
 const RING_HOLES = 6;
-const SCAN_TICK_MS = 120;
 const SUCCESS_DISPLAY_MS = 1900;
 const LONG_PRESS_MS = 550;
 const TOAST_DURATION_MS = 6000;
@@ -46,12 +45,28 @@ export function BinderPage() {
 
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const toastIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const pendingDeleteIdRef = useRef<string | null>(null);
+  const pendingDeleteRef = useRef<{ id: string; quantity: number } | null>(null);
   const deleteCardRef = useRef(deleteCard);
+  const decrementQuantityRef = useRef(decrementQuantity);
 
   useEffect(() => {
     deleteCardRef.current = deleteCard;
   }, [deleteCard]);
+
+  useEffect(() => {
+    decrementQuantityRef.current = decrementQuantity;
+  }, [decrementQuantity]);
+
+  // A stack of duplicates is one Card record with a quantity field, so removing a single
+  // pocket must decrement the count rather than delete the whole record (which would take
+  // every duplicate with it). Only the last copy actually hits the hard-delete endpoint.
+  const commitPendingDelete = useCallback((pending: { id: string; quantity: number }) => {
+    if (pending.quantity > 1) {
+      decrementQuantityRef.current.mutate(pending.id);
+    } else {
+      deleteCardRef.current.mutate(pending.id);
+    }
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -59,22 +74,22 @@ export function BinderPage() {
       clearInterval(toastIntervalRef.current);
       // Navigating away (this page unmounts on route change) must not silently drop a
       // delete that's already been shown to the user as done — commit it instead of losing it.
-      if (pendingDeleteIdRef.current) {
-        deleteCardRef.current.mutate(pendingDeleteIdRef.current);
-        pendingDeleteIdRef.current = null;
+      if (pendingDeleteRef.current) {
+        commitPendingDelete(pendingDeleteRef.current);
+        pendingDeleteRef.current = null;
       }
     };
-  }, []);
+  }, [commitPendingDelete]);
 
   const finalizePendingDelete = useCallback(() => {
-    const pendingId = pendingDeleteIdRef.current;
-    if (pendingId) {
+    const pending = pendingDeleteRef.current;
+    if (pending) {
       clearInterval(toastIntervalRef.current);
-      pendingDeleteIdRef.current = null;
-      deleteCard.mutate(pendingId);
+      pendingDeleteRef.current = null;
+      commitPendingDelete(pending);
     }
     setToast(null);
-  }, [deleteCard]);
+  }, [commitPendingDelete]);
 
   const openMenu = useCallback(
     (card: Card, x: number, y: number) => {
@@ -103,7 +118,7 @@ export function BinderPage() {
   const handleDeleteCard = useCallback(
     (card: Card) => {
       finalizePendingDelete();
-      pendingDeleteIdRef.current = card.id;
+      pendingDeleteRef.current = { id: card.id, quantity: card.quantity };
       setToast({ card, progress: 100 });
       setMenu(null);
       let elapsedMs = 0;
@@ -112,44 +127,44 @@ export function BinderPage() {
         const progress = Math.max(0, 100 - (100 * elapsedMs) / TOAST_DURATION_MS);
         if (progress <= 0) {
           clearInterval(toastIntervalRef.current);
-          const pendingId = pendingDeleteIdRef.current;
-          pendingDeleteIdRef.current = null;
+          const pending = pendingDeleteRef.current;
+          pendingDeleteRef.current = null;
           setToast(null);
-          if (pendingId) deleteCard.mutate(pendingId);
+          if (pending) commitPendingDelete(pending);
           return;
         }
         setToast((current) => (current ? { ...current, progress } : current));
       }, TOAST_TICK_MS);
     },
-    [deleteCard, finalizePendingDelete],
+    [commitPendingDelete, finalizePendingDelete],
   );
 
   const handleUndo = useCallback(() => {
     clearInterval(toastIntervalRef.current);
-    pendingDeleteIdRef.current = null;
+    pendingDeleteRef.current = null;
     setToast(null);
   }, []);
 
   const displayedCards = useMemo(() => {
     const cards = ownedCards ?? [];
-    return toast ? cards.filter((c) => c.id !== toast.card.id) : cards;
+    if (!toast) return cards;
+    // Only the one pocket being removed should disappear from the preview — not every
+    // duplicate of that card — so drop the stack's quantity by one instead of filtering it out.
+    return cards
+      .map((c) => (c.id === toast.card.id ? { ...c, quantity: c.quantity - 1 } : c))
+      .filter((c) => c.quantity > 0);
   }, [ownedCards, toast]);
 
   const [scanPhase, setScanPhase] = useState<ScanPhase>('idle');
-  const [scanIndex, setScanIndex] = useState(0);
-  const [scanTotal, setScanTotal] = useState(0);
-  const [scanCardName, setScanCardName] = useState('');
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
 
-  const tickTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const clearGlowTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(
     () => () => {
-      clearTimeout(tickTimerRef.current);
       clearTimeout(successTimerRef.current);
       clearTimeout(clearGlowTimerRef.current);
     },
@@ -167,17 +182,6 @@ export function BinderPage() {
   const startScan = () => setScanPhase('confirm');
   const cancelScan = () => setScanPhase('idle');
 
-  // Purely cosmetic — cycles through pockets while the real refresh request is in flight, since
-  // its duration depends on the API (near-instant once card ids are cached, slower on first run).
-  const tick = (pockets: Card[], index: number) => {
-    tickTimerRef.current = setTimeout(() => {
-      const next = (index + 1) % pockets.length;
-      setScanIndex(next);
-      setScanCardName(pockets[next].name);
-      tick(pockets, next);
-    }, SCAN_TICK_MS);
-  };
-
   const showResult = (result: ScanResult, changedIds: string[]) => {
     setScanResult(result);
     setHighlightedIds(new Set(changedIds));
@@ -194,15 +198,10 @@ export function BinderPage() {
 
     setScanError(null);
     setScanPhase('scanning');
-    setScanIndex(0);
-    setScanTotal(flatPockets.length);
-    setScanCardName(flatPockets[0]?.name ?? '');
-    tick(flatPockets, 0);
 
     try {
       await refreshPrices.mutateAsync();
       const refreshedCards = await getOwnedCards();
-      clearTimeout(tickTimerRef.current);
 
       let up = 0;
       let down = 0;
@@ -228,7 +227,6 @@ export function BinderPage() {
 
       showResult({ total: refreshedCards.length, up, down, unchanged }, changedIds);
     } catch {
-      clearTimeout(tickTimerRef.current);
       setScanPhase('idle');
       setScanError('Failed to refresh prices. Check that the API is running and try again.');
     }
@@ -489,7 +487,8 @@ export function BinderPage() {
             <div className="card-kicker">Price scan</div>
             <h3 className={styles.modalTitle}>Scan prices from external source?</h3>
             <p className={`card-body ${styles.modalBody}`}>
-              This checks the latest market price for all {totalOwned} cards in your binder.
+              This checks the latest market price for all {displayedCards.length} cards in your binder
+              {totalOwned > displayedCards.length ? ` (${totalOwned} specimens counting duplicates)` : ''}.
             </p>
             <div className={styles.modalActions}>
               <button type="button" className="btn btn-ghost" onClick={cancelScan}>
@@ -516,15 +515,12 @@ export function BinderPage() {
             <i className="corner br" />
             <div className="card-kicker">Price scan</div>
             <div className={styles.scanCounter}>
-              Scanning {Math.min(scanIndex + 1, scanTotal)} / {scanTotal}
+              Scanning binder
               <span className={styles.scanCursor}>_</span>
             </div>
-            <p className={`card-body ${styles.scanSubtext}`}>Checking {scanCardName}…</p>
+            <p className={`card-body ${styles.scanSubtext}`}>Fetching the latest prices — this can take a moment.</p>
             <div className={styles.progressTrack}>
-              <div
-                className={styles.progressFill}
-                style={{ width: `${scanTotal > 0 ? Math.round(((scanIndex + 1) / scanTotal) * 100) : 0}%` }}
-              />
+              <div className={styles.progressSweep} />
             </div>
           </div>
         </div>
