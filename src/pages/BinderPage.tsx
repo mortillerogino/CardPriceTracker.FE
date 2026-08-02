@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getOwnedCards } from '../api/cards';
-import { useDecrementCardQuantity, useOwnedCards, useRefreshPrices } from '../hooks/useCards';
+import { useDecrementCardQuantity, useDeleteCard, useOwnedCards, useRefreshPrices } from '../hooks/useCards';
 import type { Card } from '../types/card';
 import styles from './BinderPage.module.css';
 
@@ -9,6 +9,11 @@ const POCKETS_PER_PAGE = 9;
 const RING_HOLES = 6;
 const SCAN_TICK_MS = 120;
 const SUCCESS_DISPLAY_MS = 1900;
+const LONG_PRESS_MS = 550;
+const TOAST_DURATION_MS = 6000;
+const TOAST_TICK_MS = 100;
+const MENU_WIDTH = 208;
+const MENU_HEIGHT = 140;
 
 type ScanPhase = 'idle' | 'confirm' | 'scanning' | 'success';
 
@@ -19,11 +24,116 @@ interface ScanResult {
   unchanged: number;
 }
 
+interface MenuState {
+  card: Card;
+  x: number;
+  y: number;
+}
+
+interface ToastState {
+  card: Card;
+  progress: number;
+}
+
 export function BinderPage() {
   const { data: ownedCards, isLoading, isError } = useOwnedCards();
   const decrementQuantity = useDecrementCardQuantity();
   const refreshPrices = useRefreshPrices();
+  const deleteCard = useDeleteCard();
   const [page, setPage] = useState(0);
+  const [menu, setMenu] = useState<MenuState | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
+
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const toastIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const pendingDeleteIdRef = useRef<string | null>(null);
+  const deleteCardRef = useRef(deleteCard);
+
+  useEffect(() => {
+    deleteCardRef.current = deleteCard;
+  }, [deleteCard]);
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(longPressTimerRef.current);
+      clearInterval(toastIntervalRef.current);
+      // Navigating away (this page unmounts on route change) must not silently drop a
+      // delete that's already been shown to the user as done — commit it instead of losing it.
+      if (pendingDeleteIdRef.current) {
+        deleteCardRef.current.mutate(pendingDeleteIdRef.current);
+        pendingDeleteIdRef.current = null;
+      }
+    };
+  }, []);
+
+  const finalizePendingDelete = useCallback(() => {
+    const pendingId = pendingDeleteIdRef.current;
+    if (pendingId) {
+      clearInterval(toastIntervalRef.current);
+      pendingDeleteIdRef.current = null;
+      deleteCard.mutate(pendingId);
+    }
+    setToast(null);
+  }, [deleteCard]);
+
+  const openMenu = useCallback(
+    (card: Card, x: number, y: number) => {
+      finalizePendingDelete();
+      setMenu({
+        card,
+        x: Math.min(Math.max(x, 8), window.innerWidth - MENU_WIDTH),
+        y: Math.min(Math.max(y, 8), window.innerHeight - MENU_HEIGHT),
+      });
+    },
+    [finalizePendingDelete],
+  );
+
+  const closeMenu = useCallback(() => setMenu(null), []);
+
+  const clearLongPress = useCallback(() => clearTimeout(longPressTimerRef.current), []);
+
+  const startLongPress = useCallback(
+    (card: Card, x: number, y: number) => {
+      clearLongPress();
+      longPressTimerRef.current = setTimeout(() => openMenu(card, x, y), LONG_PRESS_MS);
+    },
+    [clearLongPress, openMenu],
+  );
+
+  const handleDeleteCard = useCallback(
+    (card: Card) => {
+      finalizePendingDelete();
+      pendingDeleteIdRef.current = card.id;
+      setToast({ card, progress: 100 });
+      setMenu(null);
+      let elapsedMs = 0;
+      toastIntervalRef.current = setInterval(() => {
+        elapsedMs += TOAST_TICK_MS;
+        const progress = Math.max(0, 100 - (100 * elapsedMs) / TOAST_DURATION_MS);
+        if (progress <= 0) {
+          clearInterval(toastIntervalRef.current);
+          const pendingId = pendingDeleteIdRef.current;
+          pendingDeleteIdRef.current = null;
+          setToast(null);
+          if (pendingId) deleteCard.mutate(pendingId);
+          return;
+        }
+        setToast((current) => (current ? { ...current, progress } : current));
+      }, TOAST_TICK_MS);
+    },
+    [deleteCard, finalizePendingDelete],
+  );
+
+  const handleUndo = useCallback(() => {
+    clearInterval(toastIntervalRef.current);
+    pendingDeleteIdRef.current = null;
+    setToast(null);
+  }, []);
+
+  const displayedCards = useMemo(() => {
+    const cards = ownedCards ?? [];
+    return toast ? cards.filter((c) => c.id !== toast.card.id) : cards;
+  }, [ownedCards, toast]);
 
   const [scanPhase, setScanPhase] = useState<ScanPhase>('idle');
   const [scanIndex, setScanIndex] = useState(0);
@@ -48,11 +158,11 @@ export function BinderPage() {
 
   const flatPockets = useMemo(() => {
     const pockets: Card[] = [];
-    (ownedCards ?? []).forEach((card) => {
+    displayedCards.forEach((card) => {
       for (let i = 0; i < card.quantity; i++) pockets.push(card);
     });
     return pockets;
-  }, [ownedCards]);
+  }, [displayedCards]);
 
   const startScan = () => setScanPhase('confirm');
   const cancelScan = () => setScanPhase('idle');
@@ -171,7 +281,56 @@ export function BinderPage() {
     );
   }
 
-  if (totalOwned === 0) {
+  const overlays = (
+    <>
+      {menu && (
+        <>
+          <div className={styles.menuBackdrop} onClick={closeMenu} />
+          <div className={`blueprint ${styles.contextMenu}`} style={{ left: menu.x, top: menu.y }}>
+            <i className="corner tl" />
+            <i className="corner tr" />
+            <i className="corner bl" />
+            <i className="corner br" />
+            <div className={styles.contextMenuHeader}>
+              <span className="card-kicker">Card options</span>
+              <div className={styles.contextMenuCardName}>{menu.card.name}</div>
+            </div>
+            <button type="button" className={`text-error ${styles.contextMenuItem}`} onClick={() => handleDeleteCard(menu.card)}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              Delete card
+            </button>
+          </div>
+        </>
+      )}
+      {toast && (
+        <div className={`blueprint ${styles.toast}`}>
+          <i className="corner tl" />
+          <i className="corner tr" />
+          <i className="corner bl" />
+          <i className="corner br" />
+          <div className={styles.toastRow}>
+            <span className={`card-body ${styles.toastText}`}>
+              Removed <strong className={styles.toastCardName}>{toast.card.name}</strong> from catalog
+            </span>
+            <button type="button" className="btn btn-secondary" onClick={handleUndo}>
+              Undo
+            </button>
+          </div>
+          <div className={styles.toastBar}>
+            <div className={styles.toastBarFill} style={{ width: `${toast.progress}%` }} />
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  if (totalOwned === 0 && !toast) {
     return (
       <div className="page page-narrow">
         <div className={`blueprint ${styles.emptyPanel}`}>
@@ -196,6 +355,7 @@ export function BinderPage() {
             </svg>
           </Link>
         </div>
+        {overlays}
       </div>
     );
   }
@@ -246,7 +406,17 @@ export function BinderPage() {
               }
               const displayPrice = card.price;
               return (
-                <div key={`${card.id}-${i}`} className={styles.pocket}>
+                <div
+                  key={`${card.id}-${i}`}
+                  className={styles.pocket}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    openMenu(card, e.clientX, e.clientY);
+                  }}
+                  onPointerDown={(e) => startLongPress(card, e.clientX, e.clientY)}
+                  onPointerUp={clearLongPress}
+                  onPointerLeave={clearLongPress}
+                >
                   <div className={`blueprint ${styles.priceTag} ${highlightedIds.has(card.id) ? styles.priceTagGlow : ''}`}>
                     <i className="corner tl" />
                     <i className="corner tr" />
@@ -257,6 +427,22 @@ export function BinderPage() {
                   <div className={`duotone ${styles.pocketArt}`}>
                     {card.imageUrl ? <img src={card.imageUrl} alt={card.name} className="cover-image" /> : 'Art'}
                   </div>
+                  <button
+                    type="button"
+                    className={`btn btn-secondary btn-icon ${styles.menuBtn}`}
+                    aria-label="Card options"
+                    title="Card options"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      openMenu(card, rect.left, rect.bottom + 6);
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="12" cy="5" r="1.8" />
+                      <circle cx="12" cy="12" r="1.8" />
+                      <circle cx="12" cy="19" r="1.8" />
+                    </svg>
+                  </button>
                   <button
                     type="button"
                     className={`btn btn-secondary btn-icon ${styles.removeBtn}`}
@@ -366,6 +552,8 @@ export function BinderPage() {
           </div>
         </div>
       )}
+
+      {overlays}
     </div>
   );
 }
