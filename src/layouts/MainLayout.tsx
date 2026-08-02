@@ -99,7 +99,10 @@ export function MainLayout() {
       <main style={{ position: 'relative', minHeight: 600 }}>
         <div
           key={location.pathname}
-          style={{ animation: `${direction === 'right' ? 'panelInRight' : 'panelInLeft'} 420ms cubic-bezier(0.22, 1, 0.36, 1) both` }}
+          // fill-mode intentionally omitted (not "both"): a lingering non-"none" transform after
+          // the animation ends would create a CSS containing block here, pinning any fixed-position
+          // descendant (e.g. toasts) to this wrapper's content height instead of the viewport.
+          style={{ animation: `${direction === 'right' ? 'panelInRight' : 'panelInLeft'} 420ms cubic-bezier(0.22, 1, 0.36, 1)` }}
         >
           <Outlet />
         </div>

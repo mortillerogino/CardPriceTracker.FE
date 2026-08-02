@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { CardTile } from '../components/CardTile';
 import { useAddFromCatalog, useCatalogSearch, useCatalogSets } from '../hooks/useCards';
 import styles from './SearchPage.module.css';
+
+const ADD_ICON_FEEDBACK_MS = 1100;
+const ADD_TOAST_MS = 2600;
 
 export function SearchPage() {
   const { data: sets } = useCatalogSets();
@@ -15,15 +18,35 @@ export function SearchPage() {
 
   const { data: results, isLoading, isError, isFetching } = useCatalogSearch(submittedQuery, submittedSetId);
   const addFromCatalog = useAddFromCatalog();
-  const [pulsingId, setPulsingId] = useState<string | null>(null);
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
+  const [addedToastName, setAddedToastName] = useState<string | null>(null);
+  const addedIconTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const addedToastTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(
+    () => () => {
+      clearTimeout(addedIconTimerRef.current);
+      clearTimeout(addedToastTimerRef.current);
+    },
+    [],
+  );
 
   const canSearch = query.trim().length > 0 && setId.trim().length > 0;
   const showResults = searched && canSearch;
 
   function handleAdd(externalId: string, name: string, setName: string, cardNumber: string, imageUrl: string | null) {
     addFromCatalog.mutate({ name, setName, cardNumber, imageUrl });
-    setPulsingId(externalId);
-    window.setTimeout(() => setPulsingId(null), 600);
+
+    setJustAddedId(externalId);
+    clearTimeout(addedIconTimerRef.current);
+    addedIconTimerRef.current = window.setTimeout(
+      () => setJustAddedId((current) => (current === externalId ? null : current)),
+      ADD_ICON_FEEDBACK_MS,
+    );
+
+    setAddedToastName(name);
+    clearTimeout(addedToastTimerRef.current);
+    addedToastTimerRef.current = window.setTimeout(() => setAddedToastName(null), ADD_TOAST_MS);
   }
 
   function submitSearch() {
@@ -116,10 +139,23 @@ export function SearchPage() {
 
       <p className={styles.hint}>A set is required — narrow your search to one set at a time.</p>
 
-      {(isLoading || isFetching) && showResults && <p className="text-muted">Searching catalog...</p>}
+      {isLoading && showResults && (
+        <div className={`blueprint ${styles.searchLoading}`}>
+          <i className="corner tl" />
+          <i className="corner tr" />
+          <i className="corner bl" />
+          <i className="corner br" />
+          <div className={styles.searchLoadingText}>
+            Searching catalog<span className={styles.searchLoadingCursor}>_</span>
+          </div>
+          <div className={styles.searchLoadingBar}>
+            <div className={styles.searchLoadingBarFill} />
+          </div>
+        </div>
+      )}
       {isError && <p className="text-error">Failed to search the catalog. Is the API running?</p>}
 
-      {showResults && (
+      {showResults && !isLoading && (
         <div className={styles.results}>
           <div className={styles.resultsLabel}>{resultsLabel}</div>
 
@@ -135,7 +171,7 @@ export function SearchPage() {
                   rarity={result.rarity}
                   quantity={result.ownedQuantity}
                   onAdd={() => handleAdd(result.externalId, result.name, result.setName, result.cardNumber, result.imageUrl)}
-                  isPulsing={pulsingId === result.externalId}
+                  justAdded={justAddedId === result.externalId}
                 />
               ))}
             </div>
@@ -150,6 +186,23 @@ export function SearchPage() {
       )}
 
       {addFromCatalog.isError && <p className={`text-error ${styles.addError}`}>Failed to add card. Please try again.</p>}
+
+      {addedToastName && (
+        <div className={`blueprint ${styles.addedToast}`}>
+          <i className="corner tl" />
+          <i className="corner tr" />
+          <i className="corner bl" />
+          <i className="corner br" />
+          <span className={styles.addedToastIcon}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12l5 5L20 7" />
+            </svg>
+          </span>
+          <span className={`card-body ${styles.addedToastText}`}>
+            Added <strong>{addedToastName}</strong> to binder
+          </span>
+        </div>
+      )}
     </div>
   );
 }
